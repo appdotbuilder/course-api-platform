@@ -1,22 +1,46 @@
+import { db } from '../db';
+import { apiKeysTable, usersTable } from '../db/schema';
 import { type CreateApiKeyInput, type ApiKey } from '../schema';
+import { eq } from 'drizzle-orm';
+import crypto from 'crypto';
 
 export async function createApiKey(input: CreateApiKeyInput): Promise<{ apiKey: ApiKey; plainKey: string }> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to create a new API key for external application access.
-    // Should generate a secure random key, hash it for storage, and return both the
-    // API key record and the plain key (which should only be shown once).
-    const plainKey = 'generated_plain_key_placeholder';
+  try {
+    // Verify that the creator user exists
+    const creator = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, input.created_by))
+      .execute();
+
+    if (creator.length === 0) {
+      throw new Error(`User with id ${input.created_by} not found`);
+    }
+
+    // Generate a secure random API key
+    const plainKey = crypto.randomBytes(32).toString('hex');
     
-    return Promise.resolve({
-        apiKey: {
-            id: 0, // Placeholder ID
-            key_name: input.key_name,
-            key_hash: 'hashed_key_placeholder',
-            created_by: input.created_by,
-            status: 'active' as const,
-            created_at: new Date(),
-            revoked_at: null
-        } as ApiKey,
-        plainKey
-    });
+    // Hash the API key for storage
+    const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
+
+    // Insert the API key record
+    const result = await db.insert(apiKeysTable)
+      .values({
+        key_name: input.key_name,
+        key_hash: keyHash,
+        created_by: input.created_by,
+        status: 'active'
+      })
+      .returning()
+      .execute();
+
+    const apiKeyRecord = result[0];
+
+    return {
+      apiKey: apiKeyRecord,
+      plainKey
+    };
+  } catch (error) {
+    console.error('API key creation failed:', error);
+    throw error;
+  }
 }

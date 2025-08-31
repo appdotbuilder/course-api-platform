@@ -1,9 +1,31 @@
+import { db } from '../db';
+import { coursesTable } from '../db/schema';
 import { type GetCourseByIdInput } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function deleteCourse(input: GetCourseByIdInput): Promise<void> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to delete a course from the database.
-    // Should verify that the course exists and the user has permission to delete it.
-    // Consider soft delete by setting status to 'archived' instead of hard delete.
-    return Promise.resolve();
+  try {
+    // First, verify the course exists
+    const existingCourse = await db.select()
+      .from(coursesTable)
+      .where(eq(coursesTable.id, input.id))
+      .execute();
+
+    if (existingCourse.length === 0) {
+      throw new Error(`Course with id ${input.id} not found`);
+    }
+
+    // Soft delete by setting status to 'archived' and updating the timestamp
+    await db.update(coursesTable)
+      .set({
+        status: 'archived',
+        updated_at: new Date()
+      })
+      .where(eq(coursesTable.id, input.id))
+      .execute();
+
+  } catch (error) {
+    console.error('Course deletion failed:', error);
+    throw error;
+  }
 }

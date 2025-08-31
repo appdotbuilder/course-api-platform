@@ -1,16 +1,37 @@
+import { db } from '../db';
+import { apiKeysTable } from '../db/schema';
 import { type RevokeApiKeyInput, type ApiKey } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function revokeApiKey(input: RevokeApiKeyInput): Promise<ApiKey> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to revoke an API key by setting its status to 'revoked'
-    // and recording the revocation timestamp. Should verify that the API key exists.
-    return Promise.resolve({
-        id: input.id,
-        key_name: 'Sample API Key',
-        key_hash: 'hashed_key_placeholder',
-        created_by: 1,
-        status: 'revoked' as const,
-        created_at: new Date(),
+export const revokeApiKey = async (input: RevokeApiKeyInput): Promise<ApiKey> => {
+  try {
+    // First, check if the API key exists and is not already revoked
+    const existingApiKey = await db.select()
+      .from(apiKeysTable)
+      .where(eq(apiKeysTable.id, input.id))
+      .execute();
+
+    if (existingApiKey.length === 0) {
+      throw new Error(`API key with id ${input.id} not found`);
+    }
+
+    if (existingApiKey[0].status === 'revoked') {
+      throw new Error(`API key with id ${input.id} is already revoked`);
+    }
+
+    // Update the API key to revoked status with current timestamp
+    const result = await db.update(apiKeysTable)
+      .set({
+        status: 'revoked',
         revoked_at: new Date()
-    } as ApiKey);
-}
+      })
+      .where(eq(apiKeysTable.id, input.id))
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('API key revocation failed:', error);
+    throw error;
+  }
+};

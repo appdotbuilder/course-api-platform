@@ -1,8 +1,18 @@
+import { db } from '../db';
+import { enrollmentsTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { type GetEnrollmentsByStudentInput, type Enrollment } from '../schema';
 
 export async function getEnrollmentsByStudent(input: GetEnrollmentsByStudentInput): Promise<Enrollment[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to fetch all enrollments for a specific student
-    // from the database. This allows students to see their enrolled courses.
-    return Promise.resolve([]);
+  try {
+    const results = await db.select()
+      .from(enrollmentsTable)
+      .where(eq(enrollmentsTable.student_id, input.student_id))
+      .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch enrollments by student:', error);
+    throw error;
+  }
 }

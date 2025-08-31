@@ -1,16 +1,31 @@
+import { db } from '../db';
+import { coursesTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { type GetCourseByIdInput, type Course } from '../schema';
 
 export async function getCourseById(input: GetCourseByIdInput): Promise<Course | null> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to fetch a specific course by its ID from the database.
-    // Returns null if course is not found.
-    return Promise.resolve({
-        id: input.id,
-        title: 'Sample Course',
-        description: 'Sample course description',
-        instructor_id: 1,
-        status: 'published' as const,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Course);
+  try {
+    const results = await db.select()
+      .from(coursesTable)
+      .where(eq(coursesTable.id, input.id))
+      .execute();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    const course = results[0];
+    return {
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      instructor_id: course.instructor_id,
+      status: course.status,
+      created_at: course.created_at,
+      updated_at: course.updated_at
+    };
+  } catch (error) {
+    console.error('Failed to get course by id:', error);
+    throw error;
+  }
 }
